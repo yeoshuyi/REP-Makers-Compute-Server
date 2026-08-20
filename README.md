@@ -2,9 +2,7 @@
 
 > Documentation for the REP Makers shared compute server (`ubuntu-makers`).
 
-A shared GPU and FPGA workstation for student and staff projects. Access is over Tailscale only; users do not have sudo; home directories are capped at 20 GB with bulk work on scratch.
-
-**Status: 🟡 In build — not yet open for users.**
+A shared GPU and FPGA workstation for student and staff projects. Access is over Tailscale only; users do not have sudo.
 
 ---
 
@@ -38,10 +36,10 @@ Full history in [`CHANGELOG.md`](CHANGELOG.md).
 | C / C++ (GCC 13–16, clang) | ✅ |
 | Java (OpenJDK 21, 25) | ✅ |
 | CUDA 13.1 + RTX 4090 | ✅ |
-| Vivado 2025.1.1 | 🟡 installing |
-| Onboarding scripts | ⬜ not started |
+| Vivado 2025.1.1 | ✅ |
+| Onboarding scripts | ✅ |
 | Slurm scheduler | ⬜ not started |
-| Apptainer | ⬜ not started |
+| Apptainer | ✅ |
 | Backups | ⬜ not started |
 | Monitoring | ⬜ not started |
 
