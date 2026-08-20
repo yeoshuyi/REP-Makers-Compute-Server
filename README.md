@@ -1,8 +1,7 @@
 # REP-Makers-Compute-Server
 
 > Documentation for the REP Makers shared compute server (`ubuntu-makers`).
-
-A shared GPU and FPGA workstation for student and staff projects. Access is over Tailscale only; users do not have sudo.
+Access is over Tailscale only; users do not have sudo.
 
 ---
 
