@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+#
+# new-user — create a compute server account
+#
+# Usage: new-user <username> ['Full Name'] ['<ssh-public-key>']
+#
+# Creates the account with no password, adds it to the compute and fpga
+# groups, and creates scratch space.
+#
+# Authentication is via Tailscale SSH (tailnet identity + ACL) — no key
+# needed. An optional SSH public key can be supplied as a fallback path for
+# admin accounts, for the case where tailscaled is routing but Tailscale SSH
+# itself is broken. Students do not need one.
+#
+# Install to /usr/local/sbin/new-user, chmod 750, root-owned.
+
+set -euo pipefail
+
+GROUPS_TO_ADD="compute,fpga"
+SCRATCH_ROOT="/scratch"
+
+die() { echo "error: $*" >&2; exit 1; }
+
+[[ $EUID -eq 0 ]] || die "must run as root"
+
+if [[ $# -lt 1 ]]; then
+    cat >&2 <<EOF
+usage: new-user <username> ['Full Name'] ['<ssh-public-key>']
+
+  username   lowercase, starts with a letter, 3-32 chars
+  full name  optional, for the GECOS field
+  key        optional. Contents of the user's id_*.pub file, quoted.
+             Only needed as a fallback for admin accounts — normal users
+             authenticate via Tailscale SSH.
+
+examples:
+  new-user alice 'Alice Tan'
+  new-user bob 'Bob Lim' 'ssh-ed25519 AAAAC3Nza... bob@laptop'
+EOF
+    exit 1
+fi
+
+u="$1"
+name="${2:-$1}"
+key="${3:-}"
+
+# --- validation ------------------------------------------------------------
+
+[[ "$u" =~ ^[a-z][a-z0-9_-]{2,31}$ ]] \
+    || die "invalid username '$u' (lowercase, starts with a letter, 3-32 chars)"
+
+id "$u" &>/dev/null && die "user '$u' already exists"
+
+if [[ -n "$key" ]]; then
+    [[ "$key" == *"PRIVATE KEY"* ]] \
+        && die "that is a PRIVATE key — ask the user for the .pub file"
+
+    [[ "$key" =~ ^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp[0-9]+|sk-ssh-ed25519@openssh\.com)[[:space:]] ]] \
+        || die "third argument does not look like an SSH public key
+       (did you pass a file path instead of its contents?)"
+fi
+
+for g in ${GROUPS_TO_ADD//,/ }; do
+    getent group "$g" >/dev/null || die "group '$g' does not exist — create it first"
+done
+
+[[ -d "$SCRATCH_ROOT" ]] || die "$SCRATCH_ROOT is not mounted"
+
+# --- create ----------------------------------------------------------------
+
+echo ">> creating $u ($name)"
+useradd -m -s /bin/bash -c "$name" -G "$GROUPS_TO_ADD" "$u"
+
+# No password login on this machine, ever
+passwd -l "$u" >/dev/null
+
+if [[ -n "$key" ]]; then
+    echo ">> installing SSH key (fallback path)"
+    install -d -m 700 -o "$u" -g "$u" "/home/$u/.ssh"
+    printf '%s\n' "$key" > "/home/$u/.ssh/authorized_keys"
+    chown "$u:$u" "/home/$u/.ssh/authorized_keys"
+    chmod 600 "/home/$u/.ssh/authorized_keys"
+else
+    echo ">> no SSH key given — Tailscale SSH only"
+fi
+
+echo ">> creating scratch space"
+# PAM also creates this on first SSH login (see systemquirks.md #11);
+# doing it here too means it exists before the user ever connects.
+install -d -m 700 -o "$u" -g "$u" \
+    "$SCRATCH_ROOT/$u" "$SCRATCH_ROOT/$u/tmp" "$SCRATCH_ROOT/$u/cache"
+
+# --- quota -----------------------------------------------------------------
+# NOT YET ENABLED. Uncomment once quotas are turned on for /home and a
+# 'quota-template' user exists. See runbook 2.4.
+#
+# echo ">> applying quota"
+# edquota -p quota-template -u "$u"
+
+# --- summary ---------------------------------------------------------------
+
+if [[ -n "$key" ]]; then
+    auth="Tailscale SSH + key fallback"
+else
+    auth="Tailscale SSH only"
+fi
+
+cat <<EOF
+
+created: $u
+  home     /home/$u
+  scratch  $SCRATCH_ROOT/$u
+  groups   $(id -nG "$u" | tr ' ' ',')
+  shell    /bin/bash
+  auth     $auth
+  password locked
+  quota    NOT ENFORCED
+
+next:
+  1. invite them to the Tailscale tailnet and add to ACL group:students
+  2. tell them to connect:  ssh $u@ubuntu-makers
+  3. verify:                sudo -u $u bash -lc 'echo \$TMPDIR; module avail'
+
+EOF

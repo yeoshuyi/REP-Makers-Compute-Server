@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# retire-user — offboard a compute server account
+#
+# Usage: retire-user <username>
+#
+# Deliberately TWO-STAGE. This locks the account, kills their processes,
+# archives their home directory, and removes scratch — but does NOT delete
+# the account. Run 'userdel -r' yourself once you've verified the tarball.
+#
+# You almost always want someone's home directory for a week after they go.
+#
+# Install to /usr/local/sbin/retire-user, chmod 750, root-owned.
+
+set -euo pipefail
+
+ARCHIVE_DIR="/opt/archive"
+SCRATCH_ROOT="/scratch"
+
+die() { echo "error: $*" >&2; exit 1; }
+
+[[ $EUID -eq 0 ]] || die "must run as root"
+[[ $# -eq 1 ]] || die "usage: retire-user <username>"
+
+u="$1"
+
+id "$u" &>/dev/null || die "no such user '$u'"
+
+uid=$(id -u "$u")
+[[ "$uid" -ge 1000 ]] || die "'$u' is a system account (uid $uid) — refusing"
+
+# --- confirm ---------------------------------------------------------------
+
+cat <<EOF
+About to retire: $u ($(getent passwd "$u" | cut -d: -f5))
+  uid          $uid
+  home         /home/$u  ($(du -sh "/home/$u" 2>/dev/null | cut -f1 || echo '?'))
+  scratch      $SCRATCH_ROOT/$u  ($(du -sh "$SCRATCH_ROOT/$u" 2>/dev/null | cut -f1 || echo 'none'))
+  processes    $(pgrep -u "$u" -c 2>/dev/null || echo 0) running
+
+This will lock the account, kill their processes, archive /home, and
+DELETE their scratch directory. The account itself is NOT removed.
+EOF
+
+read -rp "Continue? [y/N] " reply
+[[ "$reply" == [yY] ]] || { echo "aborted"; exit 0; }
+
+# --- lock ------------------------------------------------------------------
+
+echo ">> locking account"
+usermod -L -s /usr/sbin/nologin "$u"
+
+echo ">> killing processes"
+pkill -TERM -u "$u" 2>/dev/null || true
+sleep 5
+pkill -KILL -u "$u" 2>/dev/null || true
+
+# Slurm not yet installed; guard so this doesn't fail the script later
+if command -v scancel &>/dev/null; then
+    echo ">> cancelling queued jobs"
+    scancel -u "$u" 2>/dev/null || true
+fi
+
+# --- archive ---------------------------------------------------------------
+
+install -d -m 700 "$ARCHIVE_DIR"
+tarball="$ARCHIVE_DIR/${u}-$(date +%F).tar.gz"
+
+echo ">> archiving /home/$u -> $tarball"
+tar -C /home -czf "$tarball" "$u"
+chmod 600 "$tarball"
+
+echo ">> verifying archive"
+tar -tzf "$tarball" >/dev/null || die "archive verification FAILED — stopping, nothing removed"
+echo "   ok ($(du -h "$tarball" | cut -f1))"
+
+# --- scratch ---------------------------------------------------------------
+# Scratch is documented as never backed up. Removed, not archived.
+
+if [[ -d "$SCRATCH_ROOT/$u" ]]; then
+    echo ">> removing scratch (never backed up, by policy)"
+    rm -rf "${SCRATCH_ROOT:?}/${u:?}"
+fi
+
+# --- summary ---------------------------------------------------------------
+
+cat <<EOF
+
+retired: $u
+  account  locked, shell set to nologin
+  home     STILL PRESENT at /home/$u
+  archive  $tarball
+  scratch  deleted
+
+remaining, once you have verified the archive:
+  tar -tzf $tarball | head          # sanity check the contents
+  userdel -r $u                     # removes the account and /home/$u
+
+also remember:
+  - remove them from the Tailscale tailnet / ACL groups
+  - disable their school SSO account if that is the identity source
+
+EOF

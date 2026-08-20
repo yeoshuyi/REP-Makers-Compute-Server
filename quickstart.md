@@ -5,53 +5,68 @@
 ---
 
 ## Onboarding
+Authentication is by **Tailscale identity**
 
-### What you need to do
+### For users
 
-**1. Get a Tailscale account.**
-Get an invite link from maintainer. Install Tailscale on the machine you'll connect from:
+**1. Install Tailscale** on whatever machine you'll connect from, and get invited to the network:
 
 | Platform | Install |
 |---|---|
-| macOS / Windows | Download from tailscale.com/download |
+| macOS / Windows | Download from [tailscale.com/download](https://tailscale.com/download) |
 | Linux | `curl -fsSL https://tailscale.com/install.sh \| sh` |
 | iOS / Android | App Store / Play Store |
 
-Then `tailscale up` and sign in with your Tailscale account.
-
-**2. Send an admin your SSH public key.**
+**2. Sign in** with your school account:
 
 ```bash
-ssh-keygen -t ed25519          # if you don't already have one
-cat ~/.ssh/id_ed25519.pub      # send this — never send the file without .pub
+tailscale up
+tailscale status          # ubuntu-makers should appear in the list
 ```
 
-**3. Wait for confirmation**, then test:
+**4. Connect.**
 
 ```bash
-ssh USER@ubuntu-makers
+ssh YOUR_USERNAME@ubuntu-makers
 ```
 
-### What an admin does
-
-**TODO — the `new-user` script is not yet written.** Intended:
+**5. Check it worked:**
 
 ```bash
-sudo /usr/local/sbin/new-user <username> '<ssh-pubkey>' '<Full Name>'
+echo $TMPDIR              # should be /scratch/YOUR_USERNAME/tmp
+module avail              # should list cuda, java, gcc, vivado
 ```
 
-Which will: create the account with no password (keys only), add to `compute` and `fpga` groups, apply the 20 GB `/home` quota, install the SSH key, and create `/scratch/<username>`.
+### For Account Creation
+> Requires Sudo Account
 
-Outstanding before onboarding can start:
-- [ ] `new-user` / `retire-user` scripts written
-- [ ] Tailscale ACLs tightened (currently allow-all)
-- [ ] `AllowGroups compute admins` in sshd, plus the rest of the SSH hardening
-- [ ] ufw enabled (`default deny incoming`, `allow in on tailscale0`)
-- [ ] Per-user resource limits (systemd slice)
-- [ ] Scratch purge timer
-- [ ] MOTD with the house rules
+```bash
+sudo new-user alice 'Alice Tan'
+```
 
----
+Then in the Tailscale admin console: invite the user, and add them to `group:students` in the ACL policy.
+
+Verify before handing over:
+
+```bash
+sudo -u alice bash -lc 'echo $TMPDIR; module avail'
+```
+
+**The Unix username must match** what Tailscale derives from their login if the ACL uses `${dst_user}` mapping. Check this with a test account before onboarding a group.
+
+### Offboarding
+
+```bash
+sudo retire-user alice
+```
+
+Locks the account, kills their processes, archives `/home/alice` to `/opt/archive`, and deletes their scratch. **Does not delete the account** — verify the tarball first, then:
+
+```bash
+sudo userdel -r alice
+```
+
+Also remove them from the tailnet, or disable their school SSO account if that's the identity source.
 
 ## General usage
 
@@ -63,7 +78,7 @@ tailscale status              # confirm ubuntu-makers is online
 ssh USER@ubuntu-makers
 ```
 
-`ubuntu-makers` is a MagicDNS name — no IP needed. If it doesn't resolve, check that Tailscale is actually up on your machine.
+`ubuntu-makers` is a MagicDNS name — no IP needed, and no SSH key. If it doesn't resolve, check that Tailscale is actually up on your machine.
 
 ### Where to put things
 
@@ -71,7 +86,6 @@ ssh USER@ubuntu-makers
 |---|---|---|---|---|
 | Code, configs, notes | `~` (`/home/USER`) | 20 GB *(planned, not enforced)* | not yet | no |
 | Environments, data, builds | `/scratch/USER` | none | **no** | after 30 days *(planned)* |
-
 
 ```bash
 cd /scratch/$USER
@@ -84,8 +98,7 @@ du -sh ~/* | sort -h | tail
 quota -s          # once quotas are enabled
 ```
 
-**Scratch is deleted after 30 days of no access and is never backed up.** Keep source in git. Keep anything you'd cry about losing off this machine entirely.
-
+**Scratch is deleted after 30 days of no access and is never backed up.** 
 Package caches (pip, uv, conda, HuggingFace, torch, ccache, Gradle, Maven) and `$TMPDIR` are already pointed at scratch for you — you don't need to configure that. Your `/scratch/USER` directory is created automatically the first time you SSH in.
 
 ### Loading toolchains
@@ -114,7 +127,7 @@ uv pip install numpy torch
 
 ### GPU
 
-**TODO — Slurm not yet configured.**
+One RTX 4090, shared. **TODO — Slurm not yet configured.** Until it is, check whether someone's using it before you start:
 
 ```bash
 nvidia-smi
@@ -124,8 +137,10 @@ Once Slurm is up, GPU work goes through the scheduler rather than run directly.
 
 ### Need software we don't have?
 
+You don't have sudo — this is deliberate on a shared machine. Options:
+
 1. **Python packages** — install in your own venv, no admin needed
-2. **Containers** — Apptainer (TODO: not yet installed) runs Docker images unprivileged
-3. **Use SUDO Account** — if you know what you're doing, please don't break the server
+2. **Containers** — Apptainerruns Docker images unprivileged
+3. **Use SUDO** — if you know what you're doing
 
 ---
