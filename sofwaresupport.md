@@ -6,6 +6,45 @@ Ubuntu Server LTS 26.04 (Linux 7.0 kernel)
 Last APT update: 20 August 2026
 ---
 
+## Slurm
+
+GPU work and anything heavy goes through the scheduler to prevent resource contention between users.
+
+```bash
+sinfo                     # node and partition state
+squeue                    # what's running and queued
+scancel 1234              # kill a job
+```
+
+Two ways to run something:
+
+```bash
+# Interactive — a shell with resources reserved
+srun -p interactive --gres=gpu:1 -c 4 --mem=8G --pty bash
+
+# Batch — run via bash file
+sbatch job.sh
+```
+
+Or wrap a single command directly, which is the form used throughout this document:
+```bash
+srun -p gpu --gres=gpu:1 -c 4 --mem=8G python train.py
+```
+
+| Partition | Default time | Max time | For |
+|---|---|---|---|
+| `cpu` *(default)* | 2 h | 24 h | synthesis, builds, CPU work |
+| `gpu` | 2 h | 24 h | training, CUDA |
+| `interactive` | 1 h | 4 h | shells, debugging, quick tests |
+
+A job without `--gres=gpu:1` **cannot see the GPU at all**
+
+Light work (editing, a quick compile, `nvidia-smi`) is fine directly on the login shell. Anything that runs more than a few minutes or wants the GPU belongs in a job.
+
+**`module load` goes inside job scripts.** A batch job does not inherit your shell's modules.
+
+---
+
 ## Using modules (read this first)
 
 Toolchains are **not** on your `PATH` by default. You can select what you want per session with `module`.
@@ -44,9 +83,6 @@ ssh USER@ubuntu-makers
 ```
 
 `ubuntu-makers` is the MagicDNS name — no IP address needed.
-
-**TODO:** ACL policy is currently permissive (allow-all) to avoid lockout during setup.
-
 ---
 
 ## Lmod
@@ -68,6 +104,24 @@ cd /scratch/$USER
 uv venv myproject --python 3.12
 source myproject/bin/activate
 uv pip install torch numpy pandas
+```
+
+### Via Slurm
+
+Creating the venv and installing packages is light — do it on the login shell. Running the code is not:
+
+```bash
+srun -p cpu -c 4 --mem=8G python script.py
+srun -p gpu --gres=gpu:1 -c 4 --mem=16G python train.py
+```
+
+In a job script, activate inside the script rather than relying on your shell:
+
+```bash
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:1
+source /scratch/$USER/myproject/bin/activate
+python train.py
 ```
 
 ### Where to put environments
@@ -96,6 +150,12 @@ echo $JAVA_HOME
 
 Maven and Gradle caches are redirected to `/scratch/$USER/cache` automatically.
 
+Via Slurm:
+
+```bash
+srun -p cpu -c 4 --mem=8G bash -c 'module load java/21 && mvn package'
+```
+
 There is deliberately **no system-wide `JAVA_HOME`**
 ---
 
@@ -113,6 +173,15 @@ echo $CC $CXX
 Or invoke directly: `gcc-14`, `g++-13`, etc.
 
 Also available: `clang`, `cmake`, `ninja`, `meson`, `gdb`, `valgrind`, `ccache` (cache on scratch).
+
+### Via Slurm
+
+Small builds are fine on the login shell. Anything parallel should be scheduled, so `-j` matches what you were actually allocated:
+
+```bash
+srun -p cpu -c 8 --mem=8G make -j8
+srun -p cpu -c 8 --mem=8G cmake --build build -j8
+```
 
 ---
 
@@ -142,6 +211,23 @@ nvcc -ccbin g++-15 foo.cu -o foo
 ```bash
 nvcc -arch=sm_89 foo.cu -o foo
 ```
+
+### Via Slurm
+
+Compiling needs no GPU and can run on the login shell. **Running does** — and without `--gres=gpu:1` the device is invisible, so the program will fail rather than share:
+
+```bash
+srun -p gpu --gres=gpu:1 ./foo
+srun -p gpu --gres=gpu:1 -c 4 --mem=8G ./foo
+```
+
+Interactive debugging session:
+
+```bash
+srun -p interactive --gres=gpu:1 -c 4 --mem=8G --pty bash
+module load cuda/13.1
+cuda-gdb ./foo
+```
 ---
 
 ## Vivado
@@ -168,6 +254,32 @@ Cap threads so one synthesis run doesn't starve the box (8 cores total):
 set_param general.maxThreads 4
 ```
 
+### Via Slurm
+
+Synthesis is CPU and RAM heavy and can run for hours — submit it rather than running it on a login shell:
+
+```bash
+srun -p cpu -c 4 --mem=16G bash -c \
+  'module load vivado/2025.1 && vivado -mode batch -source build.tcl -log out/vivado.log -journal out/vivado.jou'
+```
+
+For longer runs use `sbatch`:
+
+```bash
+#!/bin/bash
+#SBATCH --partition=cpu
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+#SBATCH --time=04:00:00
+#SBATCH --output=/scratch/%u/logs/%j.out
+
+module load vivado/2025.1
+cd /scratch/$USER/myproject
+vivado -mode batch -source build.tcl -log out/vivado.log -journal out/vivado.jou
+```
+
+Keep `set_param general.maxThreads` equal to `--cpus-per-task`, or Vivado spawns threads Slurm never allocated.
+
 ## Containers (Apptainer)
 
 Installed to allow software without sudo. Runs unprivileged, reads Docker images directly, passes the GPU through with `--nv`:
@@ -180,6 +292,15 @@ apptainer exec --nv docker://pytorch/pytorch:latest \
 ```
 
 Images are large. `APPTAINER_CACHEDIR` points at `/scratch/$USER/cache/apptainer` automatically — verify with `echo $APPTAINER_CACHEDIR` before a big pull.
+### Via Slurm
+
+Pulling and building images is light. Running them with the GPU is not — `--nv` only works if Slurm gave you the device:
+
+```bash
+srun -p gpu --gres=gpu:1 -c 4 --mem=8G \
+  apptainer exec --nv docker://pytorch/pytorch:latest python train.py
+```
+
 Building your own image:
 
 ```bash

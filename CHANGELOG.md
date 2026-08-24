@@ -1,5 +1,12 @@
 # Changelog
 
+## 24 Aug 2026
+
+> Slurm scheduler installed, ready for beta testing.
+
+**Toolchains**
+* Added Slurm scheduler for GPU intensive tasks
+
 ## 20 Aug 2026
 
 > OS install completed. Networking fixed. Storage reshuffled. Toolchains installed.

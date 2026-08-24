@@ -123,17 +123,35 @@ source myproject/bin/activate
 uv pip install numpy torch
 ```
 
-`pip install` outside a venv fails with `externally-managed-environment` — that's expected, not broken.
+`pip install` outside a venv fails with `externally-managed-environment`
+
+Setting up the venv is fine on the login shell. Running your code goes through Slurm:
+
+```bash
+srun -p cpu -c 4 --mem=8G python script.py
+srun -p gpu --gres=gpu:1 -c 4 --mem=16G python train.py
+```
 
 ### GPU
 
-One RTX 4090, shared. **TODO — Slurm not yet configured.** Until it is, check whether someone's using it before you start:
+One RTX 4090, shared. **GPU work goes through Slurm** — a job without `--gres=gpu:1` cannot see the card at all.
 
 ```bash
-nvidia-smi
+srun -p gpu --gres=gpu:1 -c 4 --mem=16G python train.py     # run one command
+srun -p interactive --gres=gpu:1 -c 4 --mem=8G --pty bash   # interactive shell
+sbatch job.sh                                                # submit and walk away
 ```
 
-Once Slurm is up, GPU work goes through the scheduler rather than run directly.
+Check what's happening:
+
+```bash
+sinfo                     # node and partition state
+squeue                    # everything queued and running
+squeue -u $USER           # just yours
+scancel 1234              # kill a job
+```
+
+Current load is also shown when you log in. Partitions: `cpu` (default), `gpu`, `interactive` — see the software support doc.
 
 ### Need software we don't have?
 
