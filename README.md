@@ -2,7 +2,7 @@
 
 > Documentation for the REP Makers shared compute server (`ubuntu-makers`).
 
-A shared GPU and FPGA workstation for student and staff projects. Access is over Tailscale only; users do not have sudo; home directories are capped at 20 GB with bulk work on scratch.
+A shared GPU and FPGA workstation for student and staff projects.
 
 **Status: 🟡 In build — beta testing.**
 
