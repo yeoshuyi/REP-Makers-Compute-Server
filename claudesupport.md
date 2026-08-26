@@ -4,26 +4,21 @@ This guide explains how to set up a local Claude CLI or SDK in your userspace an
 
 ## 1. Downloading Claude into Userspace
 
-Since you do not have `sudo` privileges, you must install any Python-based Claude CLI tools or the Anthropic SDK into your personal scratch directory. 
-
-We recommend using `uv` to manage a virtual environment:
-
+Installation via the official script.
 ```bash
-# Navigate to your scratch directory
-cd /scratch/$USER
-
-# Create and activate a virtual environment
-uv venv claude-env --python 3.12
-source claude-env/bin/activate
-
-# Install the Anthropic SDK or your preferred Claude CLI
-uv pip install anthropic
+curl -fsSL https://claude.ai/install.sh | bash
 ```
 
-Remember to export your API key in your session:
+Optionally, create a Python environment.
 ```bash
-export ANTHROPIC_API_KEY="your-api-key-here"
+cd ~
+uv venv claude-env --python [version]
+source ~/claude-env/bin/activate
+
+#To activate upon startup
+echo "source ~/claude-env/bin/activate" >> ~/.bashrc
 ```
+
 
 ## 2. Claude System Context Addon (`claude.md`)
 

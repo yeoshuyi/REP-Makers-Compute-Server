@@ -72,9 +72,3 @@ Full history in [`CHANGELOG.md`](CHANGELOG.md).
 ```
 
 ---
-
-## Conventions
-
-* **Admin-installed software goes in `/opt`**, exposed via Lmod modulefiles in `/opt/modulefiles`. Never in a home directory.
-* **Every non-obvious fix gets an entry in `systemquirks.md`.**
-* **Changelog entries are dated** and note what's outstanding, not just what was done.
