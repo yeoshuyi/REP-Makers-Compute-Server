@@ -2,8 +2,6 @@
 
 > Documentation for the REP Makers shared compute server (`ubuntu-makers`).
 
-A shared GPU and FPGA workstation for student and staff projects.
-
 **Status: 🟡 In build — beta testing.**
 
 ---
@@ -31,7 +29,7 @@ Full history in [`CHANGELOG.md`](CHANGELOG.md).
 | | Status |
 |---|---|
 | Ubuntu Server 26.04 LTS | ✅ |
-| Tailscale access | ✅ (ACLs still permissive) |
+| Tailscale access | ✅ |
 | Lmod modules | ✅ |
 | Python 3.10 / 3.12 / 3.14 via uv | ✅ |
 | C / C++ (GCC 13–16, clang) | ✅ |
@@ -41,6 +39,7 @@ Full history in [`CHANGELOG.md`](CHANGELOG.md).
 | Onboarding scripts | ✅ |
 | Slurm scheduler | ✅ |
 | Apptainer | ✅ |
+| Remote 3D Printing | ⬜ not started |
 | Backups | ⬜ not started |
 | Monitoring | ⬜ not started |
 
@@ -55,7 +54,7 @@ Full history in [`CHANGELOG.md`](CHANGELOG.md).
 | CPU | AMD Ryzen 7 7700 (8C/16T) |
 | RAM | 32 GiB DDR5 (2 of 4 slots used — upgradeable) |
 | GPU | NVIDIA RTX 4090 24 GB (`sm_89`) |
-| Storage | 1 TB NVMe — `/home` 200 G, `/scratch` 200 G (purged, not backed up) |
+| Storage | 1 TB NVMe — `/home` 200 G, `/scratch` 200 G (expanding soon) |
 | Access | Tailscale only, SSH keys, no user sudo |
 ---
 
