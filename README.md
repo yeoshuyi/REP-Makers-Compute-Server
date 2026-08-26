@@ -65,6 +65,7 @@ Full history in [`CHANGELOG.md`](CHANGELOG.md).
 .
 ├── README.md            this file — index and status
 ├── CHANGELOG.md         dated log of changes, plus outstanding work
+├── claudesupport.md     guide for claude CLI usage within the server
 ├── quickstart.md        for users: connecting, where files go, loading toolchains
 ├── sofwaresupport.md    what's installed, how to use each toolchain
 ├── hardwarespec.md      machine specs, partition layout, known constraints

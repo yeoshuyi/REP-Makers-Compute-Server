@@ -1,5 +1,16 @@
 # Changelog
 
+## 26 Aug 2026
+
+> Added support for slurm job GPU clock persistence. Added Claude CLI support guide to repo.
+
+**Toolchains**
+* Configured GPU peristence via Slurm prolog
+* Added system UID package
+
+**Documentation**
+* Added claudesupport.md
+
 ## 24 Aug 2026
 
 > Slurm scheduler installed, ready for beta testing.

@@ -114,6 +114,9 @@ module list
 
 Per-shell, per-session. See the software support doc for details on each toolchain.
 
+### Claude
+Claude has to understand the Slurm + Apptainer workflow. Refer to claudesupport.md.
+
 ### Python
 
 ```bash
