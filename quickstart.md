@@ -82,10 +82,10 @@ ssh USER@ubuntu-makers
 
 ### Where to put things
 
-| | Path | Quota | Backed up | Purged |
-|---|---|---|---|---|
-| Code, configs, notes | `~` (`/home/USER`) | 20 GB *(planned, not enforced)* | not yet | no |
-| Environments, data, builds | `/scratch/USER` | none | **no** | after 30 days *(planned)* |
+| | Path | Backed up |
+|---|---|---|
+| Code, configs, notes | `~` (`/home/USER`) | not yet |
+| Environments, data, builds | `/scratch/USER` | **no** |
 
 ```bash
 cd /scratch/$USER
@@ -158,10 +158,8 @@ Current load is also shown when you log in. Partitions: `cpu` (default), `gpu`, 
 
 ### Need software we don't have?
 
-You don't have sudo — this is deliberate on a shared machine. Options:
-
 1. **Python packages** — install in your own venv, no admin needed
-2. **Containers** — Apptainerruns Docker images unprivileged
+2. **Containers** — Apptainer runs Docker images unprivileged
 3. **Use SUDO** — if you know what you're doing
 
 ---
